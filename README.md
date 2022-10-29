@@ -4,11 +4,11 @@ Movie Recommendation API for BeByte's MovieRec Mobile Application
 
 # TODO
 
-- [ ] Get by Id
-- [ ] Top Rated
-- [ ] Top Rated by genre
-- [ ] Search by title (title|original_title)
-- [ ] Search by title with genre (title|original_title)
+- [x] Get by Id
+- [x] Top Rated
+- [x] Top Rated by genre
+- [x] Search by title (title|original_title)
+- [x] Search by title with genre (title|original_title)
 - [ ] Recommendation
 
 # Reminder
