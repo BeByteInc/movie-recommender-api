@@ -7,6 +7,7 @@ class Movie(BaseModel):
     original_title: str
     title: str
     overview: str
+    genres: dict
     release_date: datetime
     original_language: str
     popularity: float
@@ -15,6 +16,12 @@ class Movie(BaseModel):
     vote_average: float
     vote_count: int
 
+class SimpleMovie(BaseModel):
+    id: int
+    title: str
+    genres: dict
+    poster_path: str
 
-class MovieList(BaseModel):
-    movie_list: List[Movie] 
+
+class SimpleMovieList(BaseModel):
+    movie_list: List[SimpleMovie] 
