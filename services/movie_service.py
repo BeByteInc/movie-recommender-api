@@ -24,7 +24,7 @@ class MovieService:
     def get_top_rated(self, df: pd.DataFrame, page: int):
         # Page starts from 1
         amount = self.data_amount_per_page
-        data = df.loc[(page-1)*amount:page*amount-1, self.simple_movie_model_attributes]
+        data = df[self.simple_movie_model_attributes].iloc[(page-1)*amount:page*amount-1]
         data = data.to_dict(orient="records")
         movie_list = [SimpleMovie(**entry) for entry in data]
         return SimpleMovieList(movie_list=movie_list)
@@ -32,19 +32,19 @@ class MovieService:
     def get_top_rated_movies(self, page: int):
         return self.get_top_rated(self.df, page)
 
-    def get_top_rated_movies_by_genre_name(self, page: int, genre: str):
-        df = self.get_data_by_genre_name(genre)
+    def get_top_rated_movies_by_genre_name(self, page: int, genre_name: str):
+        df = self.get_data_by_genre_name(genre_name)
         return self.get_top_rated(df, page)
     
-    def search_by_title(self, df: pd.DataFrame, key: str):
-        data = df.loc[df.title.str.lower().str.contains(key.lower()) | df.original_title.str.lower().str.contains(key.lower()), self.simple_movie_model_attributes]
+    def search_by_title(self, df: pd.DataFrame, search_key: str):
+        data = df.loc[df.title.str.lower().str.contains(search_key.lower()) | df.original_title.str.lower().str.contains(search_key.lower()), self.simple_movie_model_attributes]
         data = data.to_dict(orient="records")
         movie_list = [SimpleMovie(**entry) for entry in data]
         return SimpleMovieList(movie_list=movie_list)
 
-    def search_by_title_all_data(self, key: str):
-        return self.search_by_title(self.df, key)
+    def search_by_title_all_data(self, search_key: str):
+        return self.search_by_title(self.df, search_key)
 
-    def search_by_title_with_genre(self, key: str, genre: str):
-        df = self.get_data_by_genre_name(genre)
-        return self.search_by_title(df, key)
+    def search_by_title_with_genre_name(self, search_key: str, genre_name: str):
+        df = self.get_data_by_genre_name(genre_name)
+        return self.search_by_title(df, search_key)

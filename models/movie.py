@@ -21,6 +21,5 @@ class SimpleMovie(BaseModel):
     genre_names: str
     poster_path: str
 
-
 class SimpleMovieList(BaseModel):
     movie_list: List[SimpleMovie] 
