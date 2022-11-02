@@ -20,6 +20,7 @@ class SimpleMovie(BaseModel):
     title: str
     genre_names: str
     poster_path: str
+    vote_average: float
 
 class SimpleMovieList(BaseModel):
     movie_list: List[SimpleMovie] 
