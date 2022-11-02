@@ -6,7 +6,7 @@ class MovieService:
     def __init__(self) -> None:
         self.df = pd.read_parquet(path.movie_data_path)
         self.df.genres = self.df.genres.apply(lambda arr: arr.tolist())
-        self.simple_movie_model_attributes = ["id", "title", "genre_names", "poster_path"]
+        self.simple_movie_model_attributes = ["id", "title", "genre_names", "poster_path", "vote_average"]
         self.movie_model_attributes = [
                 "id", "title", "original_title", "overview", "genre_names", "release_date",
                 "original_language", "poster_path", "backdrop_path", "vote_average", "vote_count"
