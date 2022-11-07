@@ -1,0 +1,9 @@
+fastapi
+pandas
+uvicorn
+pyarrow
+pydantic
+pyjwt
+passlib
+implicit
+scikit-learn
