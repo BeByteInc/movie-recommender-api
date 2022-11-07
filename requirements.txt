@@ -1,6 +1,7 @@
 fastapi
 pandas
 uvicorn
+gunicorn
 pyarrow
 pydantic
 pyjwt

@@ -9,28 +9,27 @@ import uvicorn
 app = FastAPI()
 auth_handler = AuthHandler()
 
-user_database_path = "resources/datasets/logindata.parquet"
+user_database_path = "resources/datasets/logindata.csv"
 
 @app.post("/register", status_code=201)
 def register(auth_details: AuthDetails):
-    user_database = pd.read_parquet(user_database_path)
+    user_database = pd.read_csv(user_database_path)
     if (user_database.username == auth_details.username).sum() > 0:
         raise HTTPException(status_code=400, detail='Username is taken')
     hashed_password = auth_handler.get_password_hash(auth_details.password)
     user_database.append({
         "id": user_database.id.max() + 1,
+        "email": auth_details.email,
         "username": auth_details.username,
         "password": hashed_password,
-        "verification_code": auth_details.verification_code
-    }, ignore_index=True).to_parquet(user_database_path, index=False)
+    }, ignore_index=True).to_csv(user_database_path, index=False)
     token = auth_handler.encode_token(auth_details.username)
     return {"token": token}
 
 @app.post("/login")
 def login(auth_details: AuthDetails):
-    user_database = pd.read_parquet(user_database_path)
+    user_database = pd.read_csv(user_database_path)
     data = user_database[user_database.username == auth_details.username].to_dict(orient="records")
-    print(data)
     user = None if len(data) == 0 else data[0]
     if (user is None) or (not auth_handler.verify_password(auth_details.password, user["password"])):
         raise HTTPException(status_code=401, detail="Invalid username and/or password")
