@@ -1,11 +1,12 @@
 from pydantic.generics import GenericModel
 from typing import Optional, Union
-from .movie import Movie, SimpleMovie, SimpleMovieList
+from models.movie import Movie, SimpleMovie, SimpleMovieList
+from models.recommendation import RecommendationResult
 
 class Result(GenericModel):
     status: Optional[str]
     error_message: Optional[str]
-    item_list: Optional[Union[Movie, SimpleMovie, SimpleMovieList]]
+    item_list: Optional[Union[Movie, SimpleMovie, SimpleMovieList, RecommendationResult]]
     type: str
 
     def clean(self):

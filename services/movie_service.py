@@ -1,4 +1,4 @@
-import path # type: ignore
+import path
 import pandas as pd
 from models.movie import Movie, SimpleMovie, SimpleMovieList
 
@@ -13,10 +13,23 @@ class MovieService:
         ]
         self.data_amount_per_page = 10
 
-    def get_movie_by_id(self, id: int) -> dict:
+    def get_movie_by_id(self, id: int) -> Movie:
         data = self.df.loc[self.df.id == id, self.movie_model_attributes]
         data = data.to_dict(orient="records")[0]
-        return Movie(**data)
+        movie = Movie(
+            id=data.get("id"),
+            original_title=data.get("original_title"),
+            title=data.get("title"),
+            overview=data.get("overview"),
+            genre_names=data.get("genre_names"),
+            release_date=data.get("release_date"),
+            original_language=data.get("original_language"),
+            poster_path=data.get("poster_path"),
+            backdrop_path=data.get("backdrop_path"),
+            vote_average=data.get("vote_average"),
+            vote_count=data.get("vote_count")
+        )
+        return movie
 
     def get_data_by_genre_name(self, genre_name: str):
         return self.df.loc[self.df.genre_names.str.lower().str.contains(genre_name.lower())]
@@ -26,7 +39,15 @@ class MovieService:
         amount = self.data_amount_per_page
         data = df[self.simple_movie_model_attributes].iloc[(page-1)*amount:page*amount-1]
         data = data.to_dict(orient="records")
-        movie_list = [SimpleMovie(**entry) for entry in data]
+        movie_list = [
+                SimpleMovie(
+                    id=entry.get("id"),
+                    title=entry.get("title"),
+                    genre_names=entry.get("genre_names"),
+                    poster_path=entry.get("poster_path"),
+                    vote_average=entry.get("vote_average")
+                ) for entry in data
+        ]
         return SimpleMovieList(movie_list=movie_list)
 
     def get_top_rated_movies(self, page: int):
@@ -39,7 +60,15 @@ class MovieService:
     def search_by_title(self, df: pd.DataFrame, search_key: str):
         data = df.loc[df.title.str.lower().str.contains(search_key.lower()) | df.original_title.str.lower().str.contains(search_key.lower()), self.simple_movie_model_attributes]
         data = data.to_dict(orient="records")
-        movie_list = [SimpleMovie(**entry) for entry in data]
+        movie_list = [
+                SimpleMovie(
+                    id=entry.get("id"),
+                    title=entry.get("title"),
+                    genre_names=entry.get("genre_names"),
+                    poster_path=entry.get("poster_path"),
+                    vote_average=entry.get("vote_average")
+                ) for entry in data
+        ]
         return SimpleMovieList(movie_list=movie_list)
 
     def search_by_title_all_data(self, search_key: str):

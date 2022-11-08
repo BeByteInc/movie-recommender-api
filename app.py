@@ -1,15 +1,16 @@
 from models.result import Result
-from models.user import AuthDetails
+from models.user import AuthDetails, UserDetails
 from services.movie_service import MovieService
 from services.auth_service import AuthHandler
 from fastapi import FastAPI, Depends, HTTPException
+from path import user_database_path
 import pandas as pd
 import uvicorn
 
+from services.recommendation_service import RecommendationService
+
 app = FastAPI()
 auth_handler = AuthHandler()
-
-user_database_path = "resources/datasets/logindata.csv"
 
 @app.post("/register", status_code=201)
 def register(auth_details: AuthDetails):
@@ -17,12 +18,15 @@ def register(auth_details: AuthDetails):
     if (user_database.username == auth_details.username).sum() > 0:
         raise HTTPException(status_code=400, detail='Username is taken')
     hashed_password = auth_handler.get_password_hash(auth_details.password)
-    user_database.append({
+
+    register_data = pd.DataFrame([{
         "id": user_database.id.max() + 1,
         "email": auth_details.email,
         "username": auth_details.username,
         "password": hashed_password,
-    }, ignore_index=True).to_csv(user_database_path, index=False)
+    }])
+
+    pd.concat([user_database, register_data], ignore_index=True).to_csv(user_database_path, index=False)
     token = auth_handler.encode_token(auth_details.username)
     return {"token": token}
 
@@ -56,6 +60,16 @@ async def search_by_title_all_data(search_key: str, _=Depends(auth_handler.auth_
 @app.get("/search_by_title_with_genre_name", response_model=Result)
 async def search_by_title_with_genre(search_key: str, genre_name: str, _=Depends(auth_handler.auth_wrapper)):
     return Result.build(type="SimpleMovieList", function=movie_service.search_by_title_with_genre_name, search_key=search_key, genre_name=genre_name)
+
+recommendation_service = RecommendationService()
+
+@app.get("/recommend", response_model=Result)
+async def recommend(username: str, _=Depends(auth_handler.auth_wrapper)):
+    return Result.build(type="RecommendationResult", function=recommendation_service.recommend, username=username)
+
+@app.post("/set_user_likes")
+async def set_user_likes(user: UserDetails, _=Depends(auth_handler.auth_wrapper)):
+    return Result.build(type="RecommendationResult", function=recommendation_service.set_user_likes, user=user)
 
 if __name__ == "__main__":
     uvicorn.run("app:app", reload=True, host="0.0.0.0")
