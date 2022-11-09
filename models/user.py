@@ -5,8 +5,15 @@ class AuthDetails(BaseModel):
     email: Optional[str]
     username: str
     password: str
-    favorites_set: Optional[bool]
 
-class UserDetails(BaseModel):
-    username: str
-    movie_list: List[int]
+class UserFavorite(BaseModel):
+    user_id: int
+    movie_id: int
+
+class UserFavorites(BaseModel):
+    user_id: int
+    movie_ids: List[int]
+
+class RecommendByGenreModel(BaseModel):
+    user_id: int
+    genre_names: List[str]

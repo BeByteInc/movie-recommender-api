@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
@@ -23,4 +23,4 @@ class SimpleMovie(BaseModel):
     vote_average: float
 
 class SimpleMovieList(BaseModel):
-    movie_list: List[SimpleMovie] 
+    movie_list: Optional[List[SimpleMovie]]
