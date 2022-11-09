@@ -12,6 +12,9 @@ from services.recommendation_service import RecommendationService
 app = FastAPI()
 auth_handler = AuthHandler()
 
+movie_service = MovieService()
+recommendation_service = RecommendationService()
+
 @app.post("/register", status_code=201)
 def register(auth_details: AuthDetails):
     user_database = pd.read_csv(user_database_path)
@@ -24,11 +27,12 @@ def register(auth_details: AuthDetails):
         "email": auth_details.email,
         "username": auth_details.username,
         "password": hashed_password,
+        "favorites_set": False,
     }])
 
     pd.concat([user_database, register_data], ignore_index=True).to_csv(user_database_path, index=False)
     token = auth_handler.encode_token(auth_details.username)
-    return {"token": token}
+    return {"username": auth_details.username, "token": token, "item_list": []}
 
 @app.post("/login")
 def login(auth_details: AuthDetails):
@@ -38,9 +42,8 @@ def login(auth_details: AuthDetails):
     if (user is None) or (not auth_handler.verify_password(auth_details.password, user["password"])):
         raise HTTPException(status_code=401, detail="Invalid username and/or password")
     token = auth_handler.encode_token(user["username"])
-    return { "token": token }
+    return {"username": auth_details.username, "token": token, "item_list": recommendation_service.get_user_likes(auth_details.username)}
 
-movie_service = MovieService()
 @app.get("/get_movie_by_id", response_model=Result)
 async def get_movie_by_id(id: int, _=Depends(auth_handler.auth_wrapper)):
     return Result.build(type="Movie", function=movie_service.get_movie_by_id, id=id)
@@ -60,8 +63,6 @@ async def search_by_title_all_data(search_key: str, _=Depends(auth_handler.auth_
 @app.get("/search_by_title_with_genre_name", response_model=Result)
 async def search_by_title_with_genre(search_key: str, genre_name: str, _=Depends(auth_handler.auth_wrapper)):
     return Result.build(type="SimpleMovieList", function=movie_service.search_by_title_with_genre_name, search_key=search_key, genre_name=genre_name)
-
-recommendation_service = RecommendationService()
 
 @app.get("/recommend", response_model=Result)
 async def recommend(username: str, _=Depends(auth_handler.auth_wrapper)):
