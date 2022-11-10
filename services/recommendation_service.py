@@ -93,7 +93,7 @@ class RecommendationService:
             return {}
         users = self.userdata[self.userdata.favorites_set == True]
         user_ids = np.array([self.user_to_id.get(i) for i in users.id.tolist()])
-        ids, _ = model.recommend(user_ids, data[user_ids], N=n)
+        ids, _ = model.recommend(user_ids, data[user_ids], N=n, filter_already_liked_items=True)
         result = dict(zip(users.id.tolist(), ids.tolist()))
         return result
 
