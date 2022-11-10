@@ -101,6 +101,10 @@ class RecommendationService:
         res = self.recommend_dict.get(user_id)
         if res is None:
             return SimpleMovieList(movie_list=[])
+        
+        user_favorites = self.favdata.loc[self.favdata.user_id == user_id].movie_id.iloc[0]
+        res = [i for i in res if not i in user_favorites]
+
         movie_data = self.moviedata[self.moviedata.id.isin(np.array(res))]
         movie_data = movie_data.to_dict(orient="records")
         movie_list = [
