@@ -34,9 +34,9 @@ class RecommendationService:
     def get_user_favorites(self, user_id: int) -> SimpleMovieList:
         fav_set = self.userdata.loc[self.userdata.id == user_id, "favorites_set"]
         if fav_set.empty:
-            return SimpleMovieList()
+            return SimpleMovieList(movie_list=[])
         if not fav_set.iloc[0]:
-            return SimpleMovieList()
+            return SimpleMovieList(movie_list=[])
         movie_list = self.favdata.loc[self.favdata.user_id == user_id].movie_id.iloc[0]
         movie_data = self.moviedata[self.moviedata.id.isin(movie_list)].to_dict(orient="records")
         movie_list = [
@@ -100,7 +100,7 @@ class RecommendationService:
     def recommend(self, user_id: int) -> SimpleMovieList:
         res = self.recommend_dict.get(user_id)
         if res is None:
-            return SimpleMovieList()
+            return SimpleMovieList(movie_list=[])
         movie_data = self.moviedata[self.moviedata.id.isin(np.array(res))]
         movie_data = movie_data.to_dict(orient="records")
         movie_list = [
@@ -117,7 +117,7 @@ class RecommendationService:
     def recommend_with_genre(self, user_id: int, genre_names: List[str]) -> SimpleMovieList:
         res = self.recommend_dict.get(user_id)
         if res is None:
-            return SimpleMovieList()
+            return SimpleMovieList(movie_list=[])
         movie_data = self.moviedata[self.moviedata.id.isin(np.array(res))].reset_index(drop=True)
         true_map = pd.Series(data=[True]*len(movie_data))
         for genre in genre_names:
