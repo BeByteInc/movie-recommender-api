@@ -37,7 +37,7 @@ class MovieService:
     def get_top_rated(self, df: pd.DataFrame, page: int):
         # Page starts from 1
         amount = self.data_amount_per_page
-        data = df[self.simple_movie_model_attributes].iloc[(page-1)*amount:page*amount-1]
+        data = df[self.simple_movie_model_attributes].iloc[(page-1)*amount:page*amount]
         data = data.to_dict(orient="records")
         movie_list = [
                 SimpleMovie(
