@@ -1,4 +1,7 @@
 /resources
+gunicorn_conf
+access_log
+error_log
 
 
 # Byte-compiled / optimized / DLL files
