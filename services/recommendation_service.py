@@ -14,7 +14,7 @@ def create_map(arr: np.ndarray) -> Tuple[Dict[int, int], Dict[int, int]]:
 
 class RecommendationService:
     def __init__(self):
-        pass
+        self.recommend_dict = self.recommend_all()
 
     def get_user(self, username):
         conn = sqlite3.connect(path.database)
@@ -37,8 +37,9 @@ class RecommendationService:
         conn.commit()
         conn.close()
         
-        # self.recommend_dict = self.recommend_all()
-        # return self.recommend(user_id)
+        self.recommend_dict = self.recommend_all()
+        print(self.recommend_dict)
+        return self.recommend(user_id)
 
     def get_user_favorites(self, user_id: int) -> SimpleMovieList:
         conn = sqlite3.connect(path.database) # Tables => (users, movies)
@@ -101,47 +102,65 @@ class RecommendationService:
         return ratings_pivot
 
     def recommend_all(self, n: int=100) -> Dict[int, List[int]]:
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
+        user_ids = conn.execute("SELECT id FROM users WHERE username IS NOT NULL").fetchall()
+        conn.close()
+        if len(user_ids) == 0:
+            return {}
+        base_user_ids = [i[0] for i in user_ids]
+
         data = self.get_sparse_data()
         model = AlternatingLeastSquares(factors=64, regularization=0.05, alpha=2)
         model.fit(data)
-        if (self.userdata.favorites_set == True).sum() == 0:
-            return {}
-        users = self.userdata[self.userdata.favorites_set == True]
-        user_ids = np.array([self.user_to_id.get(i) for i in users.id.tolist()])
+        user_ids = np.array([self.user_to_id.get(i) for i in base_user_ids])
         ids, _ = model.recommend(user_ids, data[user_ids], N=n, filter_already_liked_items=True)
-        result = dict(zip(users.id.tolist(), ids.tolist()))
+        movie_ids = []
+        for movies in ids:
+            l = [self.id_to_movie.get(i) for i in movies]
+            movie_ids.append(l)
+        result = dict(zip(base_user_ids, movie_ids))
         return result
 
     def recommend(self, user_id: int) -> SimpleMovieList:
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
         res = self.recommend_dict.get(user_id)
         if res is None:
             return SimpleMovieList(movie_list=[])
         
-        user_favorites = self.favdata.loc[self.favdata.user_id == user_id].movie_id.iloc[0]
-        res = [i for i in res if not i in user_favorites]
+        movie_data = []
+        for movie_id in res:
+            movie_data.append(conn.execute("SELECT id, title, genre_names, poster_path, vote_average FROM movies WHERE id is (?)", (int(movie_id),)).fetchone())
+        conn.close()
 
-        movie_data = self.moviedata[self.moviedata.id.isin(np.array(res))]
-        movie_data = movie_data.to_dict(orient="records")
         movie_list = [
             SimpleMovie(
-                id=entry.get("id"),
-                title=entry.get("title"),
-                genre_names=entry.get("genre_names"),
-                poster_path=entry.get("poster_path"),
-                vote_average=entry.get("vote_average")
-            ) for entry in movie_data
+                id=entry[0],
+                title=entry[1],
+                genre_names=entry[2],
+                poster_path=entry[3],
+                vote_average=entry[4]
+                ) for entry in movie_data[:50]
         ] 
         return SimpleMovieList(movie_list=movie_list)
     
     def recommend_with_genre(self, user_id: int, genre_names: List[str]) -> SimpleMovieList:
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
         res = self.recommend_dict.get(user_id)
         if res is None:
             return SimpleMovieList(movie_list=[])
-        movie_data = self.moviedata[self.moviedata.id.isin(np.array(res))].reset_index(drop=True)
+
+        movie_data = []
+        for movie_id in res:
+            movie_data.append(conn.execute("SELECT id, title, genre_names, poster_path, vote_average FROM movies WHERE id is (?)", (int(movie_id),)).fetchone())
+        conn.close()
+        
+        movie_data = pd.DataFrame(data=movie_data, columns=["id", "title", "genre_names", "poster_path", "vote_average"])
+
         true_map = pd.Series(data=[True]*len(movie_data))
         for genre in genre_names:
             true_map = (true_map) & (movie_data.genre_names.str.lower().str.contains(genre.lower()))
         movie_data = movie_data[true_map].to_dict(orient="records")
+
         movie_list = [
             SimpleMovie(
                 id=entry.get("id"),
@@ -149,6 +168,6 @@ class RecommendationService:
                 genre_names=entry.get("genre_names"),
                 poster_path=entry.get("poster_path"),
                 vote_average=entry.get("vote_average")
-            ) for entry in movie_data
+                ) for entry in movie_data[:20]
         ] 
         return SimpleMovieList(movie_list=movie_list)
