@@ -1,6 +1,5 @@
 from typing import List, Union, Any
 from pydantic import BaseModel
-from datetime import datetime
 
 class Movie(BaseModel):
     id: int
@@ -8,7 +7,7 @@ class Movie(BaseModel):
     title: str
     overview: str
     genre_names: str
-    release_date: datetime
+    release_date: str
     original_language: str
     poster_path: str
     backdrop_path: str

@@ -1,16 +1,19 @@
+import sqlite3
 import path
 import pandas as pd
 from models.movie import Movie, SimpleMovie, SimpleMovieList
 
 class MovieService:
     def __init__(self) -> None:
-        self.df = pd.read_parquet(path.movie_data_path)
-        self.df.genres = self.df.genres.apply(lambda arr: arr.tolist())
+        conn = sqlite3.connect(path.database)
+        data = conn.execute("SELECT * FROM movies").fetchall()
+
         self.simple_movie_model_attributes = ["id", "title", "genre_names", "poster_path", "vote_average"]
         self.movie_model_attributes = [
-                "id", "title", "original_title", "overview", "genre_names", "release_date",
+                "id", "original_title","title", "overview", "genre_names", "release_date",
                 "original_language", "poster_path", "backdrop_path", "vote_average", "vote_count"
         ]
+        self.df = pd.DataFrame(data=data, columns=self.movie_model_attributes+["popularity"]).sort_values(by="popularity")
         self.data_amount_per_page = 10
 
     def get_movie_by_id(self, id: int) -> Movie:
