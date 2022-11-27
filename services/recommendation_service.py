@@ -5,6 +5,7 @@ from models.movie import SimpleMovie, SimpleMovieList
 from scipy import sparse
 from implicit.als import AlternatingLeastSquares
 from typing import Dict, Tuple, List
+import sqlite3
 
 def create_map(arr: np.ndarray) -> Tuple[Dict[int, int], Dict[int, int]]:
     item_to_id = dict(zip(arr, range(len(arr))))
@@ -13,82 +14,96 @@ def create_map(arr: np.ndarray) -> Tuple[Dict[int, int], Dict[int, int]]:
 
 class RecommendationService:
     def __init__(self):
-        self.userdata = pd.read_csv(path.user_database_path) # [id: int, email: str, username: str, password: str, favorites_set: bool]
-        self.moviedata = pd.read_parquet(path.movie_data_path) 
-        self.favdata = pd.read_parquet(path.recommendation_data_path) # [user_id: int, movie_id: List[int]]
-        self.recommend_dict = self.recommend_all()
+        pass
 
-    def set_user_favorites(self, user_id: int, movie_ids: List[int]) -> SimpleMovieList:
-        if not (self.favdata.user_id == user_id).any():
-            data = pd.DataFrame([{"user_id": user_id, "movie_id": movie_ids}])
-            self.favdata = pd.concat([self.favdata, data], axis=0, ignore_index=True)
-            self.favdata.to_parquet(path.recommendation_data_path)
+    def get_user(self, username):
+        conn = sqlite3.connect(path.database)
+        user = conn.execute("SELECT id, password FROM users WHERE username is ?", (username,)).fetchone()
+        conn.close()
+        return user
 
-        self.userdata = pd.read_csv(path.user_database_path) # [id: int, email: str, username: str, password: str, favorites_set: bool]
-        self.userdata.loc[self.userdata.id == user_id, "favorites_set"] = True
-        self.userdata.to_csv(path.user_database_path, index=False)
+    def register_user(self, email: str, username: str, password: str):
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
+        conn.execute("INSERT INTO users (email, username, password) VALUES (?, ?, ?)", (email, username, password))
+        conn.commit()
+        user_id = conn.execute("SELECT id FROM users WHERE username is ?", (username,)).fetchone()
+        conn.close()
+        return user_id
+
+    def set_user_favorites(self, user_id: int, movie_ids: List[int]):# -> SimpleMovieList:
+        movie_ids_string = "|".join([str(i) for i in movie_ids])
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
+        conn.execute("UPDATE users SET movie_id=(?) WHERE id=(?)", (movie_ids_string, user_id))
+        conn.commit()
+        conn.close()
         
-        self.recommend_dict = self.recommend_all()
-        return self.recommend(user_id)
+        # self.recommend_dict = self.recommend_all()
+        # return self.recommend(user_id)
 
     def get_user_favorites(self, user_id: int) -> SimpleMovieList:
-        fav_set = self.userdata.loc[self.userdata.id == user_id, "favorites_set"]
-        if fav_set.empty:
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
+        movie_ids_string = conn.execute("SELECT movie_id FROM users WHERE id is ?", (user_id,)).fetchone()[0]
+
+        if movie_ids_string is None:
             return SimpleMovieList(movie_list=[])
-        if not fav_set.iloc[0]:
-            return SimpleMovieList(movie_list=[])
-        movie_list = self.favdata.loc[self.favdata.user_id == user_id].movie_id.iloc[0]
-        movie_data = self.moviedata[self.moviedata.id.isin(movie_list)].to_dict(orient="records")
+
+        movie_data = []
+        for movie_id in movie_ids_string.split("|"):
+            movie_data.append(conn.execute("SELECT id, title, genre_names, poster_path, vote_average FROM movies WHERE id is (?)", (int(movie_id),)).fetchone())
+
+        conn.close()
         movie_list = [
             SimpleMovie(
-                id=entry.get("id"),
-                title=entry.get("title"),
-                genre_names=entry.get("genre_names"),
-                poster_path=entry.get("poster_path"),
-                vote_average=entry.get("vote_average")
+                id=entry[0],
+                title=entry[1],
+                genre_names=entry[2],
+                poster_path=entry[3],
+                vote_average=entry[4]
             ) for entry in movie_data
         ] 
         return SimpleMovieList(movie_list=movie_list)
 
     def add_user_favorites(self, user_id: int, movie_id: int):
-        user = self.favdata.loc[self.favdata.user_id == user_id].iloc[0]
-        movie_list = user.movie_id if movie_id in user.movie_id else np.append(user.movie_id, movie_id)
-        self.favdata.at[user.name, "movie_id"] = movie_list
-        self.favdata.to_parquet(path.recommendation_data_path)
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
+        movie_ids_string = conn.execute("SELECT movie_id FROM users WHERE id is ?", (user_id,)).fetchone()[0]
+        movie_ids_string += f"|{movie_id}"
+        conn.execute("UPDATE users SET movie_id=(?) WHERE id=(?)", (movie_ids_string, user_id))
+        conn.commit()
+        conn.close()
     
     def remove_user_favorites(self, user_id: int, movie_id: int):
-        user = self.favdata.loc[self.favdata.user_id == user_id].iloc[0]
-        self.favdata.at[user.name, "movie_id"] = user.movie_id[user.movie_id != movie_id]
-        self.favdata.to_parquet(path.recommendation_data_path)
-
-    def create_recommendation_data(self):
-        favdata = pd.read_parquet(path.recommendation_data_path)
-        fav_sum = favdata.movie_id.apply(len).sum()
-
-        self.recdata = pd.merge(favdata.user_id, favdata.movie_id.explode(), left_index=True, right_index=True)
-        self.recdata["favorites"] = 1
-
-        self.user_to_id, self.id_to_user = create_map(self.recdata.user_id.unique())
-        self.movie_to_id, self.id_to_movie = create_map(self.recdata.movie_id.unique())
-        self.base_favorite_count = fav_sum
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
+        movie_ids_string = conn.execute("SELECT movie_id FROM users WHERE id is ?", (user_id,)).fetchone()[0]
+        movie_ids = [i for i in movie_ids_string.split("|") if i != str(movie_id)]
+        movie_ids_string = "|".join(movie_ids)
+        conn.execute("UPDATE users SET movie_id=(?) WHERE id=(?)", (movie_ids_string, user_id))
+        conn.commit()
+        conn.close()
 
     def get_sparse_data(self) -> sparse.csr_matrix:
-        self.create_recommendation_data()
-        ratings_mapped = self.recdata.assign(
-            user_id = self.recdata.user_id.map(self.user_to_id),
-            post_id = self.recdata.movie_id.map(self.movie_to_id),
-        )
-        ratings_pivot = sparse.csr_matrix(ratings_mapped.pivot_table(values="favorites", index="user_id", columns="movie_id", fill_value=0))
-        return ratings_pivot
+        conn = sqlite3.connect(path.database) # Tables => (users, movies)
+        self.user_data = conn.execute("SELECT id, movie_id FROM USERS").fetchall()
+        conn.close()
+        recdata = pd.DataFrame(data = self.user_data, columns=["user_id", "movie_ids"])
+        recdata = recdata.assign(
+                favorite = 1,
+                movie_ids = lambda df: df.movie_ids.apply(lambda x: [int(i) for i in x.split("|")])
+        ).pipe(lambda df: df.explode("movie_ids"))
 
-    def create_model(self, data):
-        model = AlternatingLeastSquares(factors=64, regularization=0.05, alpha=2)
-        model.fit(data)
-        return model
+        self.user_to_id, self.id_to_user = create_map(recdata.user_id.unique())
+        self.movie_to_id, self.id_to_movie = create_map(recdata.movie_ids.unique())
+
+        ratings_mapped = recdata.assign(
+            user_id = recdata.user_id.map(self.user_to_id),
+            movie_ids = recdata.movie_ids.map(self.movie_to_id),
+        )
+        ratings_pivot = sparse.csr_matrix(ratings_mapped.pivot_table(values="favorite", index="user_id", columns="movie_ids", fill_value=0))
+        return ratings_pivot
 
     def recommend_all(self, n: int=100) -> Dict[int, List[int]]:
         data = self.get_sparse_data()
-        model = self.create_model(data)
+        model = AlternatingLeastSquares(factors=64, regularization=0.05, alpha=2)
+        model.fit(data)
         if (self.userdata.favorites_set == True).sum() == 0:
             return {}
         users = self.userdata[self.userdata.favorites_set == True]

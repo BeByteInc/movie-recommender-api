@@ -1,5 +1,5 @@
 from models.result import Result
-from models.user import AuthDetails, UserFavorite, UserFavorites, RecommendByGenreModel
+from models.user import RegisterDetail, LoginDetail, UserFavorite, UserFavorites, RecommendByGenreModel
 from services.movie_service import MovieService
 from services.auth_service import AuthHandler
 from fastapi import FastAPI, Depends, HTTPException
@@ -16,34 +16,32 @@ movie_service = MovieService()
 recommendation_service = RecommendationService()
 
 @app.post("/register", status_code=201)
-def register(auth_details: AuthDetails):
-    user_database = pd.read_csv(user_database_path)
-    if (user_database.username == auth_details.username).sum() > 0:
+def register(auth_details: RegisterDetail):
+    user = recommendation_service.get_user(auth_details.username)
+    if user is not None:
         raise HTTPException(status_code=400, detail='Username is taken')
+    
     hashed_password = auth_handler.get_password_hash(auth_details.password)
-
-    user_id = (user_database.id.max() + 1).item()
-    register_data = pd.DataFrame([{
-        "id": user_id,
-        "email": auth_details.email,
-        "username": auth_details.username,
-        "password": hashed_password,
-        "favorites_set": False,
-    }])
-
-    pd.concat([user_database, register_data], ignore_index=True).to_csv(user_database_path, index=False)
     token = auth_handler.encode_token(auth_details.username)
-    return {"username": auth_details.username, "user_id": user_id, "token": token, "item_list": recommendation_service.get_user_favorites(user_id)}
+
+    user_id = recommendation_service.register_user(auth_details.email, auth_details.username, hashed_password)[0]
+
+    response = {"username": auth_details.username, "user_id": user_id, "token": token, "item_list": []}
+    return response
 
 @app.post("/login")
-def login(auth_details: AuthDetails):
-    user_database = pd.read_csv(user_database_path)
-    data = user_database[user_database.username == auth_details.username].to_dict(orient="records")
-    user = None if len(data) == 0 else data[0]
-    if (user is None) or (not auth_handler.verify_password(auth_details.password, user["password"])):
+def login(auth_details: LoginDetail):
+    user = recommendation_service.get_user(auth_details.username)
+
+    if (user is None):
         raise HTTPException(status_code=401, detail="Invalid username and/or password")
-    token = auth_handler.encode_token(user["username"])
-    return {"username": user["username"], "user_id": user["id"], "token": token, "item_list": recommendation_service.get_user_favorites(user["id"])}
+    if not auth_handler.verify_password(auth_details.password, user[1]):
+        raise HTTPException(status_code=401, detail="Invalid username and/or password")
+
+    token = auth_handler.encode_token(auth_details.username)
+
+    response = {"username": auth_details.username, "user_id": user[0], "token": token, "item_list": recommendation_service.get_user_favorites(user[0])}
+    return response
 
 @app.get("/get_movie_by_id", response_model=Result)
 async def get_movie_by_id(id: int, _=Depends(auth_handler.auth_wrapper)):

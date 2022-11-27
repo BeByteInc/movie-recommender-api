@@ -1,8 +1,12 @@
 from typing import Optional, List
 from pydantic import BaseModel
 
-class AuthDetails(BaseModel):
-    email: Optional[str]
+class RegisterDetail(BaseModel):
+    email: str
+    username: str
+    password: str
+
+class LoginDetail(BaseModel):
     username: str
     password: str
 
