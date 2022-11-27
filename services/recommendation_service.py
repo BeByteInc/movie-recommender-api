@@ -1,3 +1,4 @@
+from time import sleep
 import path # type: ignore
 import pandas as pd
 import numpy as np
@@ -36,9 +37,9 @@ class RecommendationService:
         conn.execute("UPDATE users SET movie_id=(?) WHERE id=(?)", (movie_ids_string, user_id))
         conn.commit()
         conn.close()
-        
+
+        sleep(3)
         self.recommend_dict = self.recommend_all()
-        print(self.recommend_dict)
         return self.recommend(user_id)
 
     def get_user_favorites(self, user_id: int) -> SimpleMovieList:
