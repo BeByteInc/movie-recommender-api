@@ -3,8 +3,6 @@ from models.user import RegisterDetail, LoginDetail, UserFavorite, UserFavorites
 from services.movie_service import MovieService
 from services.auth_service import AuthHandler
 from fastapi import FastAPI, Depends, HTTPException
-from path import user_database_path
-import pandas as pd
 import uvicorn
 
 from services.recommendation_service import RecommendationService
