@@ -69,6 +69,10 @@ async def recommend(user_id: int, _=Depends(auth_handler.auth_wrapper)):
 async def recommend_by_genre(user: RecommendByGenreModel, _=Depends(auth_handler.auth_wrapper)):
     return Result.build(type="SimpleMovieList", function=recommendation_service.recommend_with_genre, user_id=user.user_id, genre_names=user.genre_names)
 
+@app.get("/get_user_favorites", response_model=Result)
+async def get_user_favorites(user_id: int, _=Depends(auth_handler.auth_wrapper)):
+    return Result.build(type="SimpleMovieList", function=recommendation_service.get_user_favorites, user_id=user_id)
+
 @app.post("/set_user_favorites")
 async def set_user_favorites(user: UserFavorites, _=Depends(auth_handler.auth_wrapper)):
     return Result.build(type="SimpleMovieList", function=recommendation_service.set_user_favorites, user_id=user.user_id, movie_ids=user.movie_ids)
